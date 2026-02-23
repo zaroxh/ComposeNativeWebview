@@ -14,6 +14,14 @@ sealed class PlatformWebSettings {
 
     data class DesktopWebSettings(
         var transparent: Boolean = true,
+        var dataDirectory: String? = null,
+        var initScript: String? = null,
+        var enableClipboard: Boolean = true,
+        var enableDevtools: Boolean = false,
+        var enableNavigationGestures: Boolean = true,
+        var incognito: Boolean = false,
+        var autoplayWithoutUserInteraction: Boolean = false,
+        var focused: Boolean = true,
     ) : PlatformWebSettings()
 
     data class IOSWebSettings(
