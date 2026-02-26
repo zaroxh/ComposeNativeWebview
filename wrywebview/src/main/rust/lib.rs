@@ -847,6 +847,25 @@ pub fn drain_ipc_messages(id: u64) -> Result<Vec<String>, WebViewError> {
 // Cookies
 // ============================================================================
 
+fn get_cookies_inner(id: u64) -> Result<Vec<WebViewCookie>, WebViewError> {
+    wry_log!("[wrywebview] get_cookies id={}", id);
+    with_webview(id, |webview| {
+        let cookies = webview.cookies().map_err(WebViewError::from)?;
+        Ok(cookies.iter().map(cookie_record_from).collect())
+    })
+}
+
+#[uniffi::export]
+pub fn get_cookies(id: u64) -> Result<Vec<WebViewCookie>, WebViewError> {
+    #[cfg(target_os = "linux")]
+    {
+        return run_on_gtk_thread(move || get_cookies_inner(id));
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    run_on_main_thread(move || get_cookies_inner(id))
+}
+
 fn get_cookies_for_url_inner(id: u64, url: String) -> Result<Vec<WebViewCookie>, WebViewError> {
     wry_log!("[wrywebview] get_cookies_for_url id={} url={}", id, url);
     with_webview(id, |webview| {
