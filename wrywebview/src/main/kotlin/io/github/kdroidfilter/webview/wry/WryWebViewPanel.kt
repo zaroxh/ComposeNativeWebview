@@ -9,12 +9,22 @@ import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import javax.swing.Timer
 import kotlin.concurrent.thread
-import kotlin.properties.Delegates
 
 
 class WryWebViewPanel(
     initialUrl: String,
     customUserAgent: String? = null,
+    dataDirectory: String? = null,
+    initScript: String? = null,
+    private val supportZoom: Boolean = true,
+    private val backgroundColor: Rgba,
+    private val transparent: Boolean = true,
+    private val enableClipboard: Boolean = true,
+    private val enableDevtools: Boolean = false,
+    private val enableNavigationGestures: Boolean = true,
+    private val incognito: Boolean = false,
+    private val autoplayWithoutUserInteraction: Boolean = false,
+    private val focused: Boolean = true,
     private val bridgeLogger: (String) -> Unit = { System.err.println(it) }
 ) : JPanel() {
     private val host = SkikoInterop.createHost()
@@ -22,7 +32,9 @@ class WryWebViewPanel(
     private var parentHandle: ULong = 0UL
     private var parentIsWindow: Boolean = false
     private var pendingUrl: String = initialUrl
+    private val dataDirectory: String? = dataDirectory?.trim()?.takeIf { it.isNotEmpty() }
     private val customUserAgent: String? = customUserAgent?.trim()?.takeIf { it.isNotEmpty() }
+    private val initScript: String? = initScript?.trim()?.takeIf { it.isNotEmpty() }
     private var pendingUrlWithHeaders: String? = null
     private var pendingHeaders: Map<String, String> = emptyMap()
     private var pendingHtml: String? = null
@@ -312,6 +324,26 @@ class WryWebViewPanel(
         log("requestWebViewFocus webviewId=$webviewId")
     }
 
+    fun openDevTools() {
+        val action = { webviewId?.let { NativeBindings.openDevTools(it) } }
+        if (SwingUtilities.isEventDispatchThread()) {
+            action()
+        } else {
+            SwingUtilities.invokeLater { action() }
+        }
+        log("openDevTools webviewId=$webviewId")
+    }
+
+    fun closeDevTools() {
+        val action = { webviewId?.let { NativeBindings.closeDevTools(it) } }
+        if (SwingUtilities.isEventDispatchThread()) {
+            action()
+        } else {
+            SwingUtilities.invokeLater { action() }
+        }
+        log("closeDevTools webviewId=$webviewId")
+    }
+
     private fun createIfNeeded(): Boolean {
         if (webviewId != null) return true
         if (createInFlight) return false
@@ -342,23 +374,30 @@ class WryWebViewPanel(
         val width = host.width.coerceAtLeast(1)
         val height = host.height.coerceAtLeast(1)
         val userAgent = customUserAgent
+        val dataDir = dataDirectory
         val initialUrl = pendingUrl
         val handleSnapshot = parentHandle
         if (!IS_MAC) {
             return try {
-                webviewId =
-                    if (userAgent == null) {
-                        NativeBindings.createWebview(handleSnapshot, width, height, initialUrl, handler)
-                    } else {
-                        NativeBindings.createWebviewWithUserAgent(
-                            handleSnapshot,
-                            width,
-                            height,
-                            initialUrl,
-                            userAgent,
-                            handler
-                        )
-                    }
+                webviewId = NativeBindings.createWebview(
+                    parentHandle = handleSnapshot,
+                    width = width,
+                    height = height,
+                    url = initialUrl,
+                    userAgent = userAgent,
+                    dataDirectory = dataDir,
+                    zoom = supportZoom,
+                    transparent = transparent,
+                    backgroundColor = backgroundColor,
+                    initScript = initScript,
+                    clipboard = enableClipboard,
+                    devTools = enableDevtools,
+                    navigationGestures = enableNavigationGestures,
+                    incognito = incognito,
+                    autoplay = autoplayWithoutUserInteraction,
+                    focused = focused,
+                    navHandler = handler
+                )
                 updateBounds()
                 startGtkPumpIfNeeded()
                 startWindowsPumpIfNeeded()
@@ -393,18 +432,25 @@ class WryWebViewPanel(
         stopCreateTimer()
         thread(name = "wry-webview-create", isDaemon = true) {
             val createdId = try {
-                if (userAgent == null) {
-                    NativeBindings.createWebview(handleSnapshot, width, height, initialUrl, handler)
-                } else {
-                    NativeBindings.createWebviewWithUserAgent(
-                        handleSnapshot,
-                        width,
-                        height,
-                        initialUrl,
-                        userAgent,
-                        handler
-                    )
-                }
+                NativeBindings.createWebview(
+                    parentHandle = handleSnapshot,
+                    width = width,
+                    height = height,
+                    url = initialUrl,
+                    userAgent = userAgent,
+                    dataDirectory = dataDir,
+                    zoom = supportZoom,
+                    transparent = transparent,
+                    backgroundColor = backgroundColor,
+                    initScript = initScript,
+                    clipboard = enableClipboard,
+                    devTools = enableDevtools,
+                    navigationGestures = enableNavigationGestures,
+                    incognito = incognito,
+                    autoplay = autoplayWithoutUserInteraction,
+                    focused = focused,
+                    navHandler = handler
+                )
             } catch (e: RuntimeException) {
                 System.err.println("Failed to create Wry webview: ${e.message}")
                 e.printStackTrace()
@@ -702,25 +748,43 @@ class WryWebViewPanel(
 
 private object NativeBindings {
 
-    fun createWebview(parentHandle: ULong, width: Int, height: Int, url: String, handler: NavigationHandler): ULong {
-        return io.github.kdroidfilter.webview.wry.createWebview(parentHandle, width, height, url, handler)
-    }
-
-    fun createWebviewWithUserAgent(
+    fun createWebview(
         parentHandle: ULong,
         width: Int,
         height: Int,
         url: String,
-        userAgent: String,
-        handler: NavigationHandler,
+        userAgent: String?,
+        dataDirectory: String?,
+        zoom: Boolean,
+        transparent: Boolean,
+        backgroundColor: Rgba,
+        initScript: String?,
+        clipboard: Boolean,
+        devTools: Boolean,
+        navigationGestures: Boolean,
+        incognito: Boolean,
+        autoplay: Boolean,
+        focused: Boolean,
+        navHandler: NavigationHandler?
     ): ULong {
-        return io.github.kdroidfilter.webview.wry.createWebviewWithUserAgent(
-            parentHandle,
-            width,
-            height,
-            url,
-            userAgent,
-            handler,
+        return io.github.kdroidfilter.webview.wry.createWebview(
+            parentHandle = parentHandle,
+            width = width,
+            height = height,
+            url = url,
+            userAgent = userAgent,
+            dataDirectory = dataDirectory,
+            zoom = zoom,
+            transparent = transparent,
+            backgroundColor = backgroundColor,
+            initScript = initScript,
+            clipboard = clipboard,
+            devTools = devTools,
+            navigationGestures = navigationGestures,
+            incognito = incognito,
+            autoplay = autoplay,
+            focused = focused,
+            navHandler = navHandler
         )
     }
 
@@ -733,10 +797,10 @@ private object NativeBindings {
     }
 
     fun loadUrlWithHeaders(id: ULong, url: String, additionalHttpHeaders: Map<String, String>) {
-        io.github.kdroidfilter.webview.wry.loadUrlWithHeaders(
-            id,
-            url,
-            additionalHttpHeaders.map { (name, value) -> HttpHeader(name, value) },
+        loadUrlWithHeaders(
+            id = id,
+            url = url,
+            headers = additionalHttpHeaders.map { (name, value) -> HttpHeader(name, value) },
         )
     }
 
@@ -761,7 +825,7 @@ private object NativeBindings {
     }
 
     fun evaluateJavaScript(id: ULong, script: String, callback: JavaScriptCallback) {
-        io.github.kdroidfilter.webview.wry.evaluateJavascript(id, script, callback)
+        evaluateJavascript(id, script, callback)
     }
 
     fun getUrl(id: ULong): String {
@@ -818,5 +882,13 @@ private object NativeBindings {
 
     fun focus(id: ULong) {
         io.github.kdroidfilter.webview.wry.focus(id)
+    }
+
+    fun openDevTools(id: ULong) {
+        io.github.kdroidfilter.webview.wry.openDevTools(id)
+    }
+
+    fun closeDevTools(id: ULong) {
+        io.github.kdroidfilter.webview.wry.closeDevTools(id)
     }
 }
