@@ -285,6 +285,17 @@ class WryWebViewPanel(
         } ?: emptyList()
     }
 
+    fun getCookies(): List<WebViewCookie> {
+        return webviewId?.let {
+            try {
+                NativeBindings.getCookies(it)
+            } catch (e: Exception) {
+                log("getCookies failed: ${e.message}")
+                emptyList()
+            }
+        } ?: emptyList()
+    }
+
     fun clearCookiesForUrl(url: String) {
         val action = { webviewId?.let { NativeBindings.clearCookiesForUrl(it, url) } }
         if (SwingUtilities.isEventDispatchThread()) {
@@ -854,6 +865,10 @@ private object NativeBindings {
 
     fun getCookiesForUrl(id: ULong, url: String): List<WebViewCookie> {
         return io.github.kdroidfilter.webview.wry.getCookiesForUrl(id, url)
+    }
+
+    fun getCookies(id: ULong): List<WebViewCookie> {
+        return io.github.kdroidfilter.webview.wry.getCookies(id)
     }
 
     fun clearCookiesForUrl(id: ULong, url: String) {
