@@ -388,6 +388,11 @@ class WryWebViewPanel(
         val dataDir = dataDirectory
         val initialUrl = pendingUrl
         val handleSnapshot = parentHandle
+
+        if (!host.isDisplayable) {
+            return false
+        }
+
         if (!IS_MAC) {
             return try {
                 webviewId = NativeBindings.createWebview(
@@ -439,6 +444,7 @@ class WryWebViewPanel(
                 true
             }
         }
+
         createInFlight = true
         stopCreateTimer()
         thread(name = "wry-webview-create", isDaemon = true) {

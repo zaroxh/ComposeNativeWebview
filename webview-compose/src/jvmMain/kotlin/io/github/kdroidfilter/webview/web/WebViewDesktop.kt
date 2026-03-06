@@ -84,16 +84,17 @@ actual fun ActualWebView(
     }
 
     key(effectiveSettingsKey) {
-        val nativeWebView = remember(state, factory) { factory(WebViewFactoryParam(state)) }
+        val nativeWebView = remember(state, factory) {
+            state.webView?.nativeWebView ?: factory(WebViewFactoryParam(state))
+        }
 
-        val desktopWebView =
-            remember(nativeWebView, scope, webViewJsBridge) {
-                DesktopWebView(
-                    webView = nativeWebView,
-                    scope = scope,
-                    webViewJsBridge = webViewJsBridge,
-                )
-            }
+        val desktopWebView = remember(nativeWebView, scope, webViewJsBridge) {
+            DesktopWebView(
+                nativeWebView = nativeWebView,
+                scope = scope,
+                webViewJsBridge = webViewJsBridge,
+            )
+        }
 
         LaunchedEffect(desktopWebView) {
             state.webView = desktopWebView
