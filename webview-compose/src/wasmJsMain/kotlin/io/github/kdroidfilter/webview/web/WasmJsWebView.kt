@@ -186,8 +186,8 @@ class WasmJsWebView(
             try {
                 val result = evaluateScriptJs(element, script)
                 callback?.invoke(result)
-            } catch (e: Exception) {
-                callback?.invoke("Error: ${e.message}")
+            } catch (t: Throwable) {
+                callback?.invoke("Error: ${t.message}")
             }
         }
     }

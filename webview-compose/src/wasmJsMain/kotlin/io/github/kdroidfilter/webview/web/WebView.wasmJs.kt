@@ -2,12 +2,7 @@
 
 package io.github.kdroidfilter.webview.web
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import io.github.kdroidfilter.webview.jsbridge.JsMessage
 import io.github.kdroidfilter.webview.jsbridge.WebViewJsBridge
@@ -181,7 +176,30 @@ actual fun ActualWebView(
                         }
                     }
                 }
-                is HtmlLoadingState.Finished -> state.loadingState = LoadingState.Finished
+
+                is HtmlLoadingState.Finished -> {
+                    state.loadingState = LoadingState.Finished
+                    state.webView?.nativeWebView?.element?.let { element ->
+                        try {
+                            state.pageTitle = evaluateScriptJs(
+                                element,
+                                "document.title"
+                            )
+                            state.lastLoadedUrl = evaluateScriptJs(
+                                element,
+                                "document.location"
+                            )
+                        } catch (t: Throwable) {
+                            KLogger.e(
+                                t = t,
+                                tag = "ActualWebView"
+                            ) {
+                                "Error getting document from iframe: ${t.message}"
+                            }
+                        }
+                    }
+                }
+
                 is HtmlLoadingState.Initializing -> state.loadingState = LoadingState.Initializing
             }
         }

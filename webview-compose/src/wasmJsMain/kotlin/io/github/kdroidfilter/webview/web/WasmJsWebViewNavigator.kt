@@ -41,8 +41,8 @@ class HtmlViewNavigator(
                     try {
                         val result = evaluateScriptJs(element, event.script)
                         event.callback?.invoke(result)
-                    } catch (e: Exception) {
-                        event.callback?.invoke("Error: ${e.message}")
+                    } catch (t: Throwable) {
+                        event.callback?.invoke("Error: ${t.message}")
                     }
                 }
                 is NavigationEvent.StopLoading -> element.contentWindow?.stop()

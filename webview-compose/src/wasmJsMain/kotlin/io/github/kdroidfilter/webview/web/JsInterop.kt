@@ -1,4 +1,5 @@
 @file:OptIn(ExperimentalWasmJsInterop::class)
+
 package io.github.kdroidfilter.webview.web
 
 import org.w3c.dom.Element
@@ -12,11 +13,7 @@ fun evaluateScriptJs(
 ): String = js(
     //language=javascript
     """{
-        try {
-            return element.contentWindow && element.contentWindow.eval ? String(element.contentWindow.eval(script)) : '';
-        } catch (err) {
-            return 'Error: ' + err.message;
-        }
+        return element.contentWindow && element.contentWindow.eval ? String(element.contentWindow.eval(script)) : '';
     }"""
 )
 
