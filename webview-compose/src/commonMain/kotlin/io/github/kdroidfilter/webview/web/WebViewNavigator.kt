@@ -60,13 +60,14 @@ class WebViewNavigator(
                     NavigationEvent.Reload -> reload()
                     NavigationEvent.StopLoading -> stopLoading()
                     is NavigationEvent.LoadUrl -> {
+                        val normalizedUrl = normalizeHttpUrl(event.url)
                         val interceptor = requestInterceptor
                         if (interceptor == null) {
-                            loadUrl(event.url, event.additionalHttpHeaders)
+                            loadUrl(normalizedUrl, event.additionalHttpHeaders)
                         } else {
                             val request =
                                 io.github.kdroidfilter.webview.request.WebRequest(
-                                    url = event.url,
+                                    url = normalizedUrl,
                                     headers = event.additionalHttpHeaders.toMutableMap(),
                                     isForMainFrame = true,
                                     method = "GET",
@@ -155,6 +156,22 @@ class WebViewNavigator(
     fun stopLoading() {
         coroutineScope.launch { navigationEvents.emit(NavigationEvent.StopLoading) }
     }
+}
+
+/**
+ * Normalize bare-domain HTTP(S) URLs by appending a trailing slash,
+ * matching browser behavior (e.g. https://example.com → https://example.com/).
+ */
+private fun normalizeHttpUrl(url: String): String {
+    if (!url.startsWith("http://") && !url.startsWith("https://")) return url
+    val schemeEnd = url.indexOf("://") + 3
+    if (url.indexOf('/', schemeEnd) == -1 &&
+        url.indexOf('?', schemeEnd) == -1 &&
+        url.indexOf('#', schemeEnd) == -1
+    ) {
+        return "$url/"
+    }
+    return url
 }
 
 @Composable
