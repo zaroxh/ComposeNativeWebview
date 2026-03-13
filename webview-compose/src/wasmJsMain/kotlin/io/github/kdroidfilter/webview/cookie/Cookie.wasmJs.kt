@@ -1,6 +1,7 @@
 @file:OptIn(ExperimentalWasmJsInterop::class)
 package io.github.kdroidfilter.webview.cookie
 
+import io.github.kdroidfilter.webview.util.KLogger
 import kotlinx.browser.document
 
 /**
@@ -62,11 +63,12 @@ object WasmJsCookieManager : CookieManager {
     }
 
     override suspend fun removeCookies(url: String) {
-        /**
-         * In a browser context, we can't easily remove cookies for a specific URL,
-         * So we'll use the same approach as removeAllCookies
-         * Alternative: use CookieStore (https://developer.mozilla.org/en-US/docs/Web/API/CookieStore)
-         */
+        // Browser document.cookie API does not support removing cookies for a specific URL/domain.
+        // Falling back to removing all cookies. Consider using CookieStore API for finer control:
+        // https://developer.mozilla.org/en-US/docs/Web/API/CookieStore
+        KLogger.w(tag = "WasmJsCookieManager") {
+            "removeCookies(url=$url): URL-specific cookie removal is not supported in browser context, removing all cookies instead"
+        }
         removeAllCookies()
     }
 }
