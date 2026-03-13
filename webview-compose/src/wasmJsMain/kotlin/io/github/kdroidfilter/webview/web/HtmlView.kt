@@ -20,6 +20,7 @@ import kotlinx.serialization.json.put
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLIFrameElement
+import org.w3c.dom.Node
 import org.w3c.dom.events.Event
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -43,7 +44,7 @@ fun HtmlView(
 ) {
     val scope = rememberCoroutineScope()
     val element = remember { mutableStateOf<HTMLIFrameElement?>(null) }
-    val root = LocalLayerContainer.current
+    val root: Node = document.body?.shadowRoot ?: document.body!!
     val density = LocalDensity.current.density
     val focusManager = LocalFocusManager.current
 
@@ -74,7 +75,7 @@ fun HtmlView(
         componentReady.value = true
         val container = componentInfo.container as HTMLDivElement
 
-        (root as Element).appendChild(container)
+        root.appendChild(container)
         container.append(componentInfo.component)
 
         container.style.position = "absolute"
@@ -177,7 +178,7 @@ fun HtmlView(
         }
 
         onDispose {
-            (root as Element).removeChild(componentInfo.container)
+            root.removeChild(componentInfo.container)
             componentInfo.updater.dispose()
             element.value?.let { onDispose(it) }
             state.htmlElement = null

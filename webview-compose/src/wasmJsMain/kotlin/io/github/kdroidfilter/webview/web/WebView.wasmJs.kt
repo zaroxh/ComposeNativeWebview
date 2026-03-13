@@ -13,14 +13,14 @@ import io.github.kdroidfilter.webview.setting.WebSettings
 import io.github.kdroidfilter.webview.util.KLogger
 import kotlinx.browser.document
 import kotlinx.coroutines.launch
-import org.w3c.dom.Element
 import org.w3c.dom.HTMLIFrameElement
+import org.w3c.dom.Node
 
 /**
  * Platform-specific parameters for the WebView factory in WebAssembly/JavaScript.
  */
 actual class WebViewFactoryParam {
-    var container: Element = document.body!!
+    var container: Node = document.body?.shadowRoot ?: document.body!!
     var existingElement: HTMLIFrameElement? = null
 }
 
