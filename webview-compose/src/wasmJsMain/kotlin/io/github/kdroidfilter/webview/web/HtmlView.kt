@@ -47,6 +47,7 @@ fun HtmlView(
     val root: Node = document.body?.shadowRoot ?: document.body!!
     val density = LocalDensity.current.density
     val focusManager = LocalFocusManager.current
+    val htmlViewFocusRequester = remember { FocusRequester() }
 
     val componentInfo = remember { ComponentInfo<HTMLIFrameElement>() }
     val focusSwitcher = remember { FocusSwitcher(componentInfo, focusManager) }
@@ -54,17 +55,25 @@ fun HtmlView(
     val componentReady = remember { mutableStateOf(false) }
 
     Box(
-        modifier = modifier.onGloballyPositioned { coordinates ->
-            val location = coordinates.positionInWindow().round()
-            val size = coordinates.size
-            if (componentReady.value) {
-                val container = componentInfo.container as HTMLDivElement
-                container.style.width = "${size.width / density}px"
-                container.style.height = "${size.height / density}px"
-                container.style.left = "${location.x / density}px"
-                container.style.top = "${location.y / density}px"
+        modifier = modifier
+            .focusRequester(htmlViewFocusRequester)
+            .onFocusChanged {
+                if (it.isFocused) {
+                    element.value?.let(::requestFocus)
+                }
             }
-        }
+            .focusTarget()
+            .onGloballyPositioned { coordinates ->
+                val location = coordinates.positionInWindow().round()
+                val size = coordinates.size
+                if (componentReady.value) {
+                    val container = componentInfo.container as HTMLDivElement
+                    container.style.width = "${size.width / density}px"
+                    container.style.height = "${size.height / density}px"
+                    container.style.left = "${location.x / density}px"
+                    container.style.top = "${location.y / density}px"
+                }
+            }
     ) {
         focusSwitcher.Content()
     }
@@ -72,6 +81,7 @@ fun HtmlView(
     DisposableEffect(Unit) {
         componentInfo.container = document.createElement("div") as HTMLDivElement
         componentInfo.component = document.createElement("iframe") as HTMLIFrameElement
+        componentInfo.component.tabIndex = 0
         componentReady.value = true
         val container = componentInfo.container as HTMLDivElement
 
@@ -99,8 +109,37 @@ fun HtmlView(
             if (!eventsInitialized.value) {
                 eventsInitialized.value = true
 
+                val syncFocusToIframe = {
+                    try {
+                        htmlViewFocusRequester.requestFocus()
+                        requestFocus(iframe)
+                        iframe.contentWindow?.focus()
+                    } catch (_: Throwable) {
+                    }
+                }
+
                 val loadCallback: (Event) -> Unit = {
                     state.loadingState = HtmlLoadingState.Finished()
+
+                    try {
+                        registerDomListener(iframe.contentWindow, "focus") {
+                            htmlViewFocusRequester.requestFocus()
+                        }
+
+                        registerDomListener(iframe.contentDocument, "focusin") {
+                            htmlViewFocusRequester.requestFocus()
+                        }
+
+                        registerDomListener(iframe.contentDocument, "pointerdown") {
+                            syncFocusToIframe()
+                        }
+
+                        registerDomListener(iframe.contentDocument, "mousedown") {
+                            syncFocusToIframe()
+                        }
+                    } catch (_: Throwable) {
+                        // Cross-origin iframe: cannot access contentDocument/contentWindow listeners
+                    }
 
                     when (val content = state.content) {
                         is HtmlContent.Url -> {
@@ -137,14 +176,15 @@ fun HtmlView(
                     )
                 }
 
-                iframe.addEventListener(
-                    type = "load",
-                    callback = loadCallback
-                )
-                iframe.addEventListener(
-                    type = "error",
-                    callback = errorCallback
-                )
+                registerDomListener(iframe, "focus") {
+                    htmlViewFocusRequester.requestFocus()
+                }
+
+                registerDomListener(iframe, "pointerdown") {
+                    syncFocusToIframe()
+                }
+                iframe.addEventListener("load", loadCallback)
+                iframe.addEventListener("error", errorCallback)
 
                 scope.launch {
                     navigator.handleNavigationEvents(iframe)
@@ -344,9 +384,7 @@ fun HtmlViewUrl(
     HtmlView(
         state = state,
         modifier = modifier,
-        navigator = navigator,
-        onCreated = {},
-        onDispose = {},
+        navigator = navigator
     )
 }
 

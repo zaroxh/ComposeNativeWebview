@@ -1,8 +1,8 @@
 @file:OptIn(ExperimentalWasmJsInterop::class)
-
 package io.github.kdroidfilter.webview.web
 
 import org.w3c.dom.Element
+import kotlin.js.JsAny
 
 /**
  * Evaluate JavaScript in the iframe context
@@ -45,4 +45,20 @@ fun addContentIdentifierJs(iframe: Element) {
  */
 fun requestFocus(element: Element) {
     js("element.focus()")
+}
+
+/**
+ * Register a DOM listener without relying on Kotlin event casting.
+ */
+fun registerDomListener(target: JsAny?, type: String, callback: () -> Unit) {
+    js(
+        //language=javascript
+        """{
+            if (target && typeof target.addEventListener === 'function') {
+                target.addEventListener(type, function () {
+                    callback();
+                });
+            }
+        }"""
+    )
 }
